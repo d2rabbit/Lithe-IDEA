@@ -15,6 +15,8 @@
   background-color: transparent;
   content: "";
   pointer-events: none;
+  /* Hover feedback fades in step with selection, instead of snapping. */
+  transition: background-color var(--app-duration-fast) var(--app-ease-smooth);
 }
 
 [data-sidebar-tree-row]:hover::before {

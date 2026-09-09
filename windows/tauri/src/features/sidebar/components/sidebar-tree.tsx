@@ -1,5 +1,5 @@
 import "@/features/sidebar/styles/sidebar-tree.css";
-import { ChevronDownIcon as ChevronDown, ChevronRightIcon as ChevronRight } from "@/ui/icons";
+import { ChevronDownIcon as ChevronDown } from "@/ui/icons";
 import type React from "react";
 import { forwardRef, useCallback } from "react";
 import { cn } from "@/utils/cn";
@@ -310,11 +310,13 @@ export function SidebarTreeDisclosure({
       }}
     >
       {visible ? (
-        expanded ? (
-          <ChevronDown className="size-3" weight="bold" />
-        ) : (
-          <ChevronRight className="size-3" weight="bold" />
-        )
+        <ChevronDown
+          className={cn(
+            "size-3 transition-transform duration-(--app-duration-fast) ease-(--app-ease-smooth)",
+            !expanded && "-rotate-90",
+          )}
+          weight="bold"
+        />
       ) : (
         <span className="size-3" />
       )}

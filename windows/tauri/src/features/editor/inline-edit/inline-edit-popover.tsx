@@ -3,7 +3,9 @@ import { forwardRef } from "react";
 import { Alert, AlertDescription } from "@/ui/alert";
 import { Button } from "@/ui/button";
 import Input from "@/ui/input";
+import { motion } from "motion/react";
 import { useTranslation } from "@/i18n/locale-provider";
+import { quickTransition } from "@/utils/motion";
 import type { Range } from "@/features/editor/types/editor.types";
 import type { useInlineEdit } from "./use-inline-edit";
 import { InlineEditModelSelector } from "./inline-edit-model-selector";
@@ -24,13 +26,16 @@ export const InlineEditPopover = forwardRef<HTMLDivElement, InlineEditPopoverPro
 
     return (
       <div ref={ref} className="pointer-events-none absolute inset-0 z-200">
-        <div
+        <motion.div
           ref={state.inlineEditPopoverRef}
           role="dialog"
           aria-modal="false"
           aria-labelledby="inline-edit-title"
           aria-describedby="inline-edit-description"
           className="pointer-events-auto absolute overflow-hidden rounded-md border border-border/70 bg-background shadow-(--shadow-popover)"
+          initial={{ opacity: 0, y: 4, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={quickTransition}
           style={{
             top: `${zoneTop ?? state.popoverPosition.top}px`,
             left: `${state.popoverPosition.left}px`,
@@ -146,7 +151,7 @@ export const InlineEditPopover = forwardRef<HTMLDivElement, InlineEditPopoverPro
               <AlertDescription>{state.inlineEditError}</AlertDescription>
             </Alert>
           )}
-        </div>
+        </motion.div>
       </div>
     );
   },

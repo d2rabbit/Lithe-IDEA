@@ -322,10 +322,20 @@ const BottomPane = () => {
   return (
     <div
       ref={paneFrameRef}
-      className={cn("flex shrink-0 flex-col", !isBottomPaneVisible && "hidden")}
+      className={cn(
+        "flex shrink-0 flex-col overflow-hidden",
+        // Height/opacity ease on toggle; skipped while dragging the pane edge
+        // so the height tracks the cursor 1:1.
+        !isResizing &&
+          "transition-[height,opacity] duration-(--app-duration-normal) ease-(--app-ease-smooth)",
+        !isBottomPaneVisible && "pointer-events-none opacity-0",
+      )}
       style={{
-        height: `calc(${height}px + var(--lithe-workbench-gap))`,
+        height: isBottomPaneVisible
+          ? `calc(${height}px + var(--lithe-workbench-gap))`
+          : "0px",
       }}
+      aria-hidden={!isBottomPaneVisible}
     >
       {resizeGutter}
       {pane}

@@ -222,7 +222,7 @@ function FileExplorerTreeItemComponent({
           : undefined
       }
       className={cn(
-        "min-w-max",
+        "min-w-max transition-colors duration-(--app-duration-fast) ease-(--app-ease-smooth)",
         isDragOver && "border-2! border-dashed! border-primary! bg-primary! bg-opacity-20!",
         isDragging && "cursor-move",
         file.ignored && "opacity-50",

@@ -179,36 +179,47 @@ export function ResizablePane({
   ) : null;
 
   return (
-    <div
-      ref={paneRef}
-      style={{ width: totalWidth }}
-      className={cn(
-        "lithe-resizable-pane relative flex h-full min-w-0 shrink-0 overflow-visible bg-transparent",
-        hidden && "pointer-events-none",
-        !hidden && position === "left" && "mr-(--lithe-workbench-gap)",
-        !hidden && position === "right" && "ml-(--lithe-workbench-gap)",
-        className,
-      )}
-      aria-hidden={hidden}
-    >
-      {position === "right" ? resizeHandle : null}
-      {isResizing && <div className="fixed inset-0 z-40 cursor-col-resize" />}
       <div
-        ref={contentRef}
-        style={{ width: hidden ? "0px" : `${width}px` }}
-        className="flex min-h-0 shrink-0 flex-col overflow-hidden py-0"
+        ref={paneRef}
+        style={{ width: totalWidth }}
+        className={cn(
+          "lithe-resizable-pane relative flex h-full min-w-0 shrink-0 overflow-visible bg-transparent",
+          // Smooth open/close; skipped while the user is dragging the width so
+          // the pane tracks the cursor 1:1.
+          !isResizing &&
+            "transition-[width,margin-inline-start,margin-inline-end] duration-(--app-duration-normal) ease-(--app-ease-smooth)",
+          hidden && "pointer-events-none",
+          !hidden && position === "left" && "mr-(--lithe-workbench-gap)",
+          !hidden && position === "right" && "ml-(--lithe-workbench-gap)",
+          className,
+        )}
+        aria-hidden={hidden}
       >
+        {position === "right" ? resizeHandle : null}
+        {isResizing && <div className="fixed inset-0 z-40 cursor-col-resize" />}
         <div
+          ref={contentRef}
+          style={{ width: hidden ? "0px" : `${width}px` }}
           className={cn(
-            "lithe-glass-island flex min-h-0 flex-1 flex-col overflow-hidden bg-background",
-            !hidden && "rounded-xl border-border border-x",
-            position === "right" && !outerEdge && "rounded-r-none border-r-0",
+            "flex min-h-0 shrink-0 flex-col overflow-hidden py-0",
+            // Content fades while the pane collapses so the clip does not
+            // read as the panel vanishing mid-frame.
+            !isResizing &&
+              "transition-[width,opacity] duration-(--app-duration-normal) ease-(--app-ease-smooth)",
+            hidden && "opacity-0",
           )}
         >
-          {children}
+          <div
+            className={cn(
+              "lithe-glass-island flex min-h-0 flex-1 flex-col overflow-hidden bg-background",
+              !hidden && "rounded-xl border-border border-x",
+              position === "right" && !outerEdge && "rounded-r-none border-r-0",
+            )}
+          >
+            {children}
+          </div>
         </div>
+        {position === "left" ? resizeHandle : null}
       </div>
-      {position === "left" ? resizeHandle : null}
-    </div>
-  );
+    );
 }
