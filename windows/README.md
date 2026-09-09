@@ -66,8 +66,14 @@ implementation instead of forking a third product. Current status:
 - The frontend is already platform-aware (`IS_LINUX` in
   `tauri/src/utils/platform.ts`); terminal ConPTY options apply to Windows
   only, and Linux terminals use the Unix PTY path of `portable-pty`.
-- `tauri.linux.conf.json` adds AppImage/deb/rpm bundle targets and PNG icons;
-  build with `scripts/build-linux.sh [deb|appimage|rpm]` (defaults to deb).
+- `tauri.linux.conf.json` adds AppImage/deb/rpm bundle targets, PNG icons, and
+  the main window definition. Platform config files only merge on their own
+  platform: without the window entry in the Linux config the app would start
+  as an invisible background process, because `tauri.windows.conf.json` does
+  not apply. Verified by running the app on a GNOME Wayland desktop — the
+  window renders out of the box (no `WEBKIT_DISABLE_DMABUF_RENDERER` override
+  needed); build with `scripts/build-linux.sh [deb|appimage|rpm]` (defaults to
+  deb).
 - Font enumeration uses `fc-list` with a built-in fallback list.
 - Not yet supported on Linux: the updater pipeline (Windows-only manifests),
   Windows-installer-specific checks, and JIT-backed WebView2 diagnostics.

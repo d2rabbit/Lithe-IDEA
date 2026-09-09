@@ -4,6 +4,7 @@ import { useFileSystemStore } from "@/features/file-system/stores/file-system.st
 import { useRecentFoldersStore } from "@/features/file-system/stores/recent-folders.store";
 import { useUIState } from "@/features/window/stores/ui-state.store";
 import { useTranslation } from "@/i18n/locale-provider";
+import { currentPlatform } from "@/utils/platform";
 import { Button } from "@/ui/button";
 import {
   ArrowClockwiseIcon,
@@ -14,6 +15,12 @@ import {
   MagnifyingGlassIcon,
   XIcon,
 } from "@/ui/icons";
+
+const PLATFORM_DISPLAY_NAME: Record<string, string> = {
+  windows: "Windows",
+  macos: "macOS",
+  linux: "Linux",
+};
 
 const projectColors = [
   "bg-emerald-500/80",
@@ -78,7 +85,7 @@ export function WelcomeScreen() {
               Lithe
             </div>
             <div className="mt-0.5 ui-text-caption text-subtle-foreground">
-              {appVersion ? `${appVersion} · Windows` : "Windows"}
+              {`${appVersion ? `${appVersion} · ` : ""}${PLATFORM_DISPLAY_NAME[currentPlatform] ?? "Windows"}`}
             </div>
             <button
               type="button"
