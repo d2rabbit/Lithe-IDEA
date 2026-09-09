@@ -13,6 +13,7 @@ use adw::prelude::*;
 use gtk::gio;
 use gtk::glib;
 use gtk::Stack;
+use sourceview5::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -22,7 +23,9 @@ struct LitheWindow {
     window: adw::ApplicationWindow,
     stack: Stack,
     files_model: gtk::StringList,
-    editor: gtk::TextView,
+    file_filter: gtk::StringFilter,
+    editor: sourceview5::View,
+    editor_buffer: sourceview5::Buffer,
     status_label: gtk::Label,
     branch_label: gtk::Label,
     content_page: adw::NavigationPage,
@@ -98,7 +101,15 @@ pub fn create(app: &adw::Application) {
 
     // Workbench state: sidebar file list + editor, standard split layout.
     let files_model = gtk::StringList::new(&[]);
-    let selection = gtk::SingleSelection::new(Some(files_model.clone()));
+    let expression =
+        gtk::PropertyExpression::new(gtk::StringObject::static_type(), None::<gtk::Expression>, "string");
+    let file_filter = gtk::StringFilter::builder()
+        .expression(&expression)
+        .ignore_case(true)
+        .build();
+    let filter_model =
+        gtk::FilterListModel::new(Some(files_model.clone()), Some(file_filter.clone()));
+    let selection = gtk::SingleSelection::new(Some(filter_model));
     let factory = gtk::SignalListItemFactory::new();
     factory.connect_setup(|_, item| {
         let label = gtk::Label::new(None);
@@ -125,17 +136,37 @@ pub fn create(app: &adw::Application) {
         .hscrollbar_policy(gtk::PolicyType::Never)
         .child(&files_view)
         .build();
+    let search_entry = gtk::SearchEntry::new();
+    search_entry.set_placeholder_text(Some("搜索文件…"));
+    search_entry.set_margin_top(6);
+    search_entry.set_margin_bottom(4);
+    search_entry.set_margin_start(6);
+    search_entry.set_margin_end(6);
+    let sidebar_content = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    sidebar_content.append(&search_entry);
+    sidebar_content.append(&files_scroller);
     let sidebar_page = adw::NavigationPage::builder()
         .title("文件")
-        .child(&files_scroller)
+        .child(&sidebar_content)
         .build();
 
-    let editor = gtk::TextView::new();
+    let editor_buffer = sourceview5::Buffer::new(None);
+    let editor = sourceview5::View::with_buffer(&editor_buffer);
     editor.set_monospace(true);
+    editor.set_show_line_numbers(true);
+    editor.set_highlight_current_line(true);
     editor.set_left_margin(8);
     editor.set_right_margin(8);
     editor.set_top_margin(6);
     editor.set_bottom_margin(6);
+    let style_name = if adw::StyleManager::default().is_dark() {
+        "Adwaita-dark"
+    } else {
+        "Adwaita"
+    };
+    if let Some(scheme) = sourceview5::StyleSchemeManager::default().scheme(style_name) {
+        editor_buffer.set_style_scheme(Some(&scheme));
+    }
     let editor_scroller = gtk::ScrolledWindow::builder()
         .child(&editor)
         .hexpand(true)
@@ -169,7 +200,9 @@ pub fn create(app: &adw::Application) {
         window: window.clone(),
         stack,
         files_model,
+        file_filter: file_filter.clone(),
         editor: editor.clone(),
+        editor_buffer: editor_buffer.clone(),
         status_label: status_label.clone(),
         branch_label: branch_label.clone(),
         content_page: content_page.clone(),
@@ -189,6 +222,45 @@ pub fn create(app: &adw::Application) {
         let this = this.clone();
         selection.connect_selection_changed(move |selection, _, _| {
             open_selected(&this, selection);
+        });
+    }
+    {
+        // Double-click and Enter open the selected file explicitly.
+        let this = this.clone();
+        files_view.connect_activate(move |_, position| {
+            let Some(path) = this.files_model.string(position).map(|value| value.to_string())
+            else {
+                return;
+            };
+            let Some(root) = this.workspace_root.borrow().clone() else {
+                return;
+            };
+            let open_path = path.clone();
+            *this.open_file_path.borrow_mut() = Some(path.clone());
+            this.status_label.set_text(&format!("读取 {path} …"));
+            let editor = this.editor.clone();
+            let status_label = this.status_label.clone();
+            let editor_buffer = this.editor_buffer.clone();
+            glib::spawn_future_local(async move {
+                let result = gio::spawn_blocking(move || core_bridge::read_file(&root, &path))
+                    .await
+                    .unwrap_or_else(|_| Err("后台读取失败".to_string()));
+                match result {
+                    Ok(text) => {
+                        editor_buffer.set_text(&text);
+                        apply_highlight(&editor_buffer, &open_path);
+                        status_label
+                            .set_text(&format!("已打开 {open_path}(Ctrl+S 保存)"));
+                    }
+                    Err(error) => status_label.set_text(&error),
+                }
+            });
+        });
+    }
+    {
+        let file_filter = file_filter.clone();
+        search_entry.connect_search_changed(move |entry| {
+            file_filter.set_search(Some(&entry.text()));
         });
     }
     {
@@ -289,8 +361,8 @@ fn open_selected(this: &SharedWindow, selection: &gtk::SingleSelection) {
     *this.open_file_path.borrow_mut() = Some(path.clone());
     this.status_label.set_text(&format!("读取 {path} …"));
 
-    let editor = this.editor.clone();
     let status_label = this.status_label.clone();
+    let editor_buffer = this.editor_buffer.clone();
     let open_path = path.clone();
     glib::spawn_future_local(async move {
         let result = gio::spawn_blocking(move || core_bridge::read_file(&root, &path))
@@ -298,7 +370,8 @@ fn open_selected(this: &SharedWindow, selection: &gtk::SingleSelection) {
             .unwrap_or_else(|_| Err("后台读取失败".to_string()));
         match result {
             Ok(text) => {
-                editor.buffer().set_text(&text);
+                editor_buffer.set_text(&text);
+                apply_highlight(&editor_buffer, &open_path);
                 status_label.set_text(&format!("已打开 {open_path}(Ctrl+S 保存)"));
             }
             Err(error) => status_label.set_text(&error),
@@ -314,7 +387,7 @@ fn save_current_file(this: &SharedWindow) {
         this.status_label.set_text("没有已打开的文件");
         return;
     };
-    let buffer = this.editor.buffer();
+    let buffer = &this.editor_buffer;
     let (start, end) = buffer.bounds();
     let text = buffer.text(&start, &end, false);
 
@@ -331,4 +404,13 @@ fn save_current_file(this: &SharedWindow) {
         };
         status_label.set_text(&message);
     });
+}
+
+/// Applies syntax highlighting for the file path using the GtkSourceView
+/// language registry (guessed from the file name).
+fn apply_highlight(buffer: &sourceview5::Buffer, path: &str) {
+    let manager = sourceview5::LanguageManager::default();
+    if let Some(language) = manager.guess_language(Some(path), None) {
+        buffer.set_language(Some(&language));
+    }
 }

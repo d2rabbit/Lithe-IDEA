@@ -8,6 +8,7 @@ description = "Lithe native Linux desktop client (GTK4/libadwaita)"
 [dependencies]
 adw = { package = "libadwaita", version = "0.7", features = ["v1_4"] }
 gtk = { package = "gtk4", version = "0.9" }
+sourceview5 = "0.9"
 lithe-core = { path = "../rust/lithe-core" }
 serde_json = "1"
 
