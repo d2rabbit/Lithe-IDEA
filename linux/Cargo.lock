@@ -1081,6 +1081,7 @@ dependencies = [
  "gtk4",
  "libadwaita",
  "lithe-core",
+ "serde",
  "serde_json",
  "sourceview5",
 ]
