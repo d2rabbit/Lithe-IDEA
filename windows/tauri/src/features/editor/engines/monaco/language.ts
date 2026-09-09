@@ -16,6 +16,7 @@ export const MONACO_LANGUAGE_BY_LITHE_ID: Record<string, string> = {
   gitignore: "gitignore",
   go: "go",
   graphql: "graphql",
+  groovy: "groovy",
   html: "html",
   java: "java",
   javascript: "javascript",

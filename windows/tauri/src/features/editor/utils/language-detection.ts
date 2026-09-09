@@ -68,6 +68,9 @@ export function detectLanguageFromPath(filePath: string): string {
     sql: "sql",
     kt: "kotlin",
     kts: "kotlin",
+    groovy: "groovy",
+    gvy: "groovy",
+    gradle: "groovy",
     swift: "swift",
     dart: "dart",
     dockerignore: "gitignore",
@@ -85,6 +88,7 @@ export function detectLanguageFromPath(filePath: string): string {
     rst: "restructuredtext",
     tex: "latex",
     scala: "scala",
+    sc: "scala",
     hs: "haskell",
     ml: "ocaml",
     fs: "fsharp",
@@ -136,6 +140,10 @@ export function detectLanguageFromFileName(fileName: string): string {
 
   if (lowercaseName === "cmakelists.txt") {
     return "cmake";
+  }
+
+  if (lowercaseName === "jenkinsfile" || lowercaseName.startsWith("jenkinsfile.")) {
+    return "groovy";
   }
 
   if (normalizedPath.endsWith("/.git/info/exclude")) {

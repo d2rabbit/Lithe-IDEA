@@ -73,6 +73,10 @@ const EXTENSION_TO_LANGUAGE: Record<string, string> = {
   kt: "kotlin",
   kts: "kotlin",
   scala: "scala",
+  sc: "scala",
+  groovy: "groovy",
+  gvy: "groovy",
+  gradle: "groovy",
   lua: "lua",
   nix: "nix",
   scm: "scheme",
@@ -122,6 +126,7 @@ const FILENAME_TO_LANGUAGE: Record<string, string> = {
   "go.mod": "go",
   "go.sum": "go",
   "go.work": "go",
+  jenkinsfile: "groovy",
 };
 
 function isEnvFileName(fileName: string): boolean {
@@ -178,6 +183,7 @@ const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
   swift: "Swift",
   kotlin: "Kotlin",
   scala: "Scala",
+  groovy: "Groovy",
   lua: "Lua",
   nix: "Nix",
   dart: "Dart",

@@ -78,6 +78,10 @@ describe("git history result adaptation", () => {
           peelsToCommit: false,
           isCurrent: false,
           upstreamShortName: undefined,
+          // The adapter normalizes missing ahead/behind to zero so consumers
+          // can render numbers directly.
+          ahead: 0,
+          behind: 0,
         },
       ],
       recentReferences: [

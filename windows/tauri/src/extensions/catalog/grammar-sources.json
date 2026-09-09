@@ -47,6 +47,10 @@
     "repository": "bkegley/tree-sitter-graphql",
     "path": "."
   },
+  "groovy": {
+    "repository": "tree-sitter/tree-sitter-groovy",
+    "path": "."
+  },
   "html": {
     "repository": "tree-sitter/tree-sitter-html",
     "path": "."
