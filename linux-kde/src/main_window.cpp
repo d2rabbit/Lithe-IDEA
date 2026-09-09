@@ -2,15 +2,13 @@
 
 #include "core_bridge.h"
 
+#include <QDockWidget>
 #include <QFileDialog>
 #include <QFontDatabase>
 #include <QFutureWatcher>
-#include <QHBoxLayout>
-#include <QKeyEvent>
-#include <QLabel>
-#include <QListWidget>
+#include <QMenuBar>
+#include <QMessageBox>
 #include <QPlainTextEdit>
-#include <QSplitter>
 #include <QStatusBar>
 #include <QToolBar>
 #include <QtConcurrent/QtConcurrentRun>
@@ -24,24 +22,48 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     editor_->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
     editor_->setLineWrapMode(QPlainTextEdit::NoWrap);
 
-    auto *splitter = new QSplitter(this);
-    splitter->addWidget(fileList_);
-    splitter->addWidget(editor_);
-    splitter->setStretchFactor(0, 0);
-    splitter->setStretchFactor(1, 1);
+    // Canonical QMainWindow layout: dockable file list, central editor,
+    // menu bar + toolbar + status bar provided by the framework.
+    auto *dock = new QDockWidget(tr("文件"), this);
+    dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    dock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetClosable);
+    dock->setWidget(fileList_);
+    addDockWidget(Qt::LeftDockWidgetArea, dock);
+
+    setCentralWidget(editor_);
+
+    auto *fileMenu = menuBar()->addMenu(tr("文件(&F)"));
+    QAction *openAction = fileMenu->addAction(
+        QIcon::fromTheme(QStringLiteral("folder-open")), tr("打开文件夹(&O)"),
+        this, &MainWindow::pickWorkspace);
+    openAction->setShortcut(QKeySequence::Open);
+    QAction *saveAction = fileMenu->addAction(
+        QIcon::fromTheme(QStringLiteral("document-save")), tr("保存(&S)"), this,
+        &MainWindow::saveCurrentFile);
+    saveAction->setShortcut(QKeySequence::Save);
+    fileMenu->addSeparator();
+    QAction *quitAction = fileMenu->addAction(
+        QIcon::fromTheme(QStringLiteral("application-exit")), tr("退出(&Q)"),
+        this, &QWidget::close);
+    quitAction->setShortcut(QKeySequence::Quit);
+
+    auto *viewMenu = menuBar()->addMenu(tr("视图(&V)"));
+    viewMenu->addAction(dock->toggleViewAction());
+
+    auto *helpMenu = menuBar()->addMenu(tr("帮助(&H)"));
+    helpMenu->addAction(QIcon::fromTheme(QStringLiteral("help-about")),
+                        tr("关于(&A)"), this, &MainWindow::showAbout);
+
+    auto *toolbar = addToolBar(tr("main"));
+    toolbar->setMovable(false);
+    toolbar->addAction(openAction);
+    toolbar->addAction(saveAction);
 
     statusLabel_ = new QLabel(tr("打开一个项目文件夹开始"), this);
     statusBar()->addWidget(statusLabel_, 1);
     branchLabel_ = new QLabel(this);
     branchLabel_->setToolTip(tr("当前 Git 分支(lithe-core git.status)"));
     statusBar()->addPermanentWidget(branchLabel_);
-
-    auto *toolbar = addToolBar(tr("main"));
-    toolbar->setMovable(false);
-    QAction *openAction = toolbar->addAction(tr("打开文件夹"));
-    connect(openAction, &QAction::triggered, this, &MainWindow::pickWorkspace);
-
-    setCentralWidget(splitter);
 
     filesWatcher_ = new QFutureWatcher<QStringList>(this);
     readWatcher_ = new QFutureWatcher<CoreBridge::Result>(this);
@@ -52,8 +74,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
             &MainWindow::openSelectedFile);
     connect(filesWatcher_, &QFutureWatcher<QStringList>::finished, this, [this] {
         fileList_->clear();
-        pendingFiles_ = filesWatcher_->result();
-        fileList_->addItems(pendingFiles_);
+        fileList_->addItems(filesWatcher_->result());
     });
     connect(readWatcher_, &QFutureWatcher<CoreBridge::Result>::finished, this,
             [this] {
@@ -77,22 +98,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
                 const std::optional<QString> branch = branchWatcher_->result();
                 branchLabel_->setText(branch ? *branch : QStringLiteral("no git"));
             });
-
-    // Ctrl+S saves the open file; handled before the editor sees the key.
-    fileList_->installEventFilter(this);
-    editor_->installEventFilter(this);
-}
-
-bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
-    if (event->type() == QEvent::KeyPress) {
-        auto *keyEvent = static_cast<QKeyEvent *>(event);
-        if (keyEvent->modifiers() & Qt::ControlModifier &&
-            keyEvent->key() == Qt::Key_S && !openFilePath_.isEmpty()) {
-            saveCurrentFile();
-            return true;
-        }
-    }
-    return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::loadWorkspace(const QString &root) {
@@ -148,6 +153,13 @@ void MainWindow::refreshBranch() {
     const QString root = workspaceRoot_;
     branchWatcher_->setFuture(
         QtConcurrent::run([root]() { return CoreBridge::gitBranch(root); }));
+}
+
+void MainWindow::showAbout() {
+    QMessageBox::about(this, tr("关于 Lithe"),
+                       tr("Lithe 0.1.0(Linux KDE 客户端)\n\n"
+                          "共享核心:lithe-core(C ABI 静态库)\n"
+                          "所有产品行为经由与 Windows/macOS 相同的命令面。"));
 }
 
 void MainWindow::setStatus(const QString &message) {

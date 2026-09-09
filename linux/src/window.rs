@@ -1,13 +1,18 @@
 //! Lithe native Linux window: GNOME shell over the shared Rust core.
 //!
-//! Every product behavior (workspace listing, file read/write, Git state) is a
-//! `lithe_core` command; this layer only owns native widgets and dialogs.
+//! The layout uses the canonical libadwaita building blocks —
+//! `AdwToolbarView` + `AdwHeaderBar`, `AdwNavigationSplitView` with
+//! `AdwNavigationPage`, and `AdwStatusPage` for the empty state — so window
+//! metrics, spacing, and title handling follow the platform standard instead
+//! of hand-rolled containers. Every product behavior (workspace listing, file
+//! read/write, Git state) is a `lithe_core` command; this layer only owns
+//! native widgets and dialogs.
 
 use crate::core_bridge;
 use adw::prelude::*;
 use gtk::gio;
 use gtk::glib;
-use gtk::prelude::*;
+use gtk::Stack;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -15,11 +20,12 @@ const OPEN_FOLDER_TITLE: &str = "打开项目文件夹";
 
 struct LitheWindow {
     window: adw::ApplicationWindow,
-    title: gtk::Label,
+    stack: Stack,
     files_model: gtk::StringList,
     editor: gtk::TextView,
     status_label: gtk::Label,
     branch_label: gtk::Label,
+    content_page: adw::NavigationPage,
     workspace_root: RefCell<Option<String>>,
     open_file_path: RefCell<Option<String>>,
 }
@@ -30,8 +36,26 @@ thread_local! {
     static WINDOW: RefCell<Option<SharedWindow>> = const { RefCell::new(None) };
 }
 
-/// Creates the main window during `startup`; `open_files` runs afterwards when
-/// the application is launched with a workspace path argument.
+/// Opens workspaces passed as positional launch arguments (GApplication open).
+pub fn open_files(files: &[gio::File]) {
+    WINDOW.with(|slot| {
+        let Some(this) = slot.borrow_mut().as_ref().cloned() else {
+            return;
+        };
+        for file in files {
+            load_workspace(&this, &path_for(file));
+        }
+    });
+}
+
+fn path_for(file: &gio::File) -> String {
+    file.path()
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
+/// Builds and presents the main window, wiring all behavior to shared-core
+/// commands executed off the UI thread.
 pub fn create(app: &adw::Application) {
     let window = adw::ApplicationWindow::builder()
         .application(app)
@@ -41,18 +65,38 @@ pub fn create(app: &adw::Application) {
         .build();
 
     let header = adw::HeaderBar::new();
-    let open_button = gtk::Button::from_icon_name("folder-open-symbolic");
-    open_button.set_tooltip_text(Some(OPEN_FOLDER_TITLE));
+    let open_button = gtk::Button::new();
+    open_button.set_child(Some(
+        &adw::ButtonContent::builder()
+            .icon_name("folder-open-symbolic")
+            .label("打开文件夹")
+            .build(),
+    ));
+    open_button.add_css_class("flat");
     header.pack_start(&open_button);
-
-    let title = gtk::Label::new(Some("Lithe"));
-    header.set_title_widget(Some(&title));
 
     let branch_label = gtk::Label::new(None);
     branch_label.set_tooltip_text(Some("当前 Git 分支(lithe-core git.status)"));
     header.pack_end(&branch_label);
 
-    // Left: workspace file list fed by `workspace.snapshot`.
+    // Welcome state: canonical AdwStatusPage empty state.
+    let welcome_open = gtk::Button::new();
+    welcome_open.set_child(Some(
+        &adw::ButtonContent::builder()
+            .icon_name("folder-open-symbolic")
+            .label("打开文件夹")
+            .build(),
+    ));
+    welcome_open.add_css_class("suggested-action");
+    welcome_open.add_css_class("pill");
+    let welcome = adw::StatusPage::builder()
+        .icon_name("folder-open-symbolic")
+        .title("欢迎使用 Lithe")
+        .description("打开一个项目文件夹,开始浏览与编辑。")
+        .child(&welcome_open)
+        .build();
+
+    // Workbench state: sidebar file list + editor, standard split layout.
     let files_model = gtk::StringList::new(&[]);
     let selection = gtk::SingleSelection::new(Some(files_model.clone()));
     let factory = gtk::SignalListItemFactory::new();
@@ -79,11 +123,13 @@ pub fn create(app: &adw::Application) {
     let files_view = gtk::ListView::new(Some(selection.clone()), Some(factory));
     let files_scroller = gtk::ScrolledWindow::builder()
         .hscrollbar_policy(gtk::PolicyType::Never)
-        .min_content_width(280)
         .child(&files_view)
         .build();
+    let sidebar_page = adw::NavigationPage::builder()
+        .title("文件")
+        .child(&files_scroller)
+        .build();
 
-    // Right: monospace editor plus a status row.
     let editor = gtk::TextView::new();
     editor.set_monospace(true);
     editor.set_left_margin(8);
@@ -101,31 +147,32 @@ pub fn create(app: &adw::Application) {
     status_label.set_margin_start(8);
     status_label.set_margin_bottom(2);
 
-    let editor_pane = gtk::Box::new(gtk::Orientation::Vertical, 4);
-    editor_pane.append(&editor_scroller);
-    editor_pane.append(&status_label);
+    let content_page = adw::NavigationPage::builder().title("Lithe").build();
+    let split_view = adw::NavigationSplitView::new();
+    split_view.set_sidebar(Some(&sidebar_page));
+    split_view.set_content(Some(&content_page));
 
-    let paned = gtk::Paned::new(gtk::Orientation::Horizontal);
-    paned.set_start_child(Some(&files_scroller));
-    paned.set_resize_start_child(false);
-    paned.set_shrink_start_child(false);
-    paned.set_end_child(Some(&editor_pane));
-    paned.set_resize_end_child(true);
-    paned.set_shrink_end_child(false);
-    paned.set_vexpand(true);
+    content_page.set_child(Some(&editor_scroller));
 
-    let content = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    content.append(&header);
-    content.append(&paned);
-    window.set_content(Some(&content));
+    let stack = Stack::new();
+    stack.add_named(&welcome, Some("welcome"));
+    stack.add_named(&split_view, Some("workbench"));
+    stack.set_vhomogeneous(false);
+
+    let toolbar_view = adw::ToolbarView::new();
+    toolbar_view.add_top_bar(&header);
+    toolbar_view.set_content(Some(&stack));
+    toolbar_view.add_bottom_bar(&status_label);
+    window.set_content(Some(&toolbar_view));
 
     let this: SharedWindow = Rc::new(LitheWindow {
         window: window.clone(),
-        title: title.clone(),
+        stack,
         files_model,
         editor: editor.clone(),
         status_label: status_label.clone(),
         branch_label: branch_label.clone(),
+        content_page: content_page.clone(),
         workspace_root: RefCell::new(None),
         open_file_path: RefCell::new(None),
     });
@@ -136,14 +183,18 @@ pub fn create(app: &adw::Application) {
     }
     {
         let this = this.clone();
+        welcome_open.connect_clicked(move |_| pick_workspace(&this));
+    }
+    {
+        let this = this.clone();
         selection.connect_selection_changed(move |selection, _, _| {
             open_selected(&this, selection);
         });
     }
-    let controller = gtk::EventControllerKey::new();
-    controller.set_propagation_phase(gtk::PropagationPhase::Capture);
     {
         let this = this.clone();
+        let controller = gtk::EventControllerKey::new();
+        controller.set_propagation_phase(gtk::PropagationPhase::Capture);
         controller.connect_key_pressed(move |_, key, _, modifier| {
             if modifier.contains(gtk::gdk::ModifierType::CONTROL_MASK)
                 && matches!(key, gtk::gdk::Key::s | gtk::gdk::Key::S)
@@ -153,26 +204,11 @@ pub fn create(app: &adw::Application) {
             }
             glib::signal::Propagation::Proceed
         });
+        editor.add_controller(controller);
     }
-    this.editor.add_controller(controller);
 
     window.present();
     WINDOW.with(|slot| *slot.borrow_mut() = Some(this));
-}
-
-/// Opens workspaces passed as positional launch arguments (GApplication open).
-pub fn open_files(files: &[gio::File]) {
-    WINDOW.with(|slot| {
-        let Some(this) = slot.borrow_mut().as_ref().cloned() else {
-            return;
-        };
-        for file in files {
-            let Some(path) = file.path() else {
-                continue;
-            };
-            load_workspace(&this, &path.to_string_lossy());
-        }
-    });
 }
 
 fn pick_workspace(this: &SharedWindow) {
@@ -204,7 +240,9 @@ fn load_workspace(this: &SharedWindow, root: &str) {
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_else(|| root.to_string());
-    this.title.set_text(&format!("Lithe — {workspace_name}"));
+    this.content_page.set_title(&workspace_name);
+    this.window.set_title(Some(&format!("Lithe — {workspace_name}")));
+    this.stack.set_visible_child_name("workbench");
     this.status_label.set_text(&format!("工作区:{root}"));
 
     {
@@ -212,8 +250,6 @@ fn load_workspace(this: &SharedWindow, root: &str) {
         let model = this.files_model.clone();
         let status_label = this.status_label.clone();
         glib::spawn_future_local(async move {
-            // After the blocking call completes, the continuation runs back on
-            // the main context, so touching widgets here is safe.
             let result = gio::spawn_blocking(move || core_bridge::workspace_files(&root))
                 .await
                 .unwrap_or_else(|_| Err("后台工作区扫描失败".to_string()));
@@ -245,10 +281,7 @@ fn open_selected(this: &SharedWindow, selection: &gtk::SingleSelection) {
     let Some(root) = this.workspace_root.borrow().clone() else {
         return;
     };
-    let Some(item) = selection
-        .selected_item()
-        .and_downcast::<gtk::StringObject>()
-    else {
+    let Some(item) = selection.selected_item().and_downcast::<gtk::StringObject>() else {
         return;
     };
     let path = item.string().to_string();

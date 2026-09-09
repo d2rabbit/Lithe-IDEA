@@ -20,11 +20,10 @@ public:
     /// Opens a workspace at startup (mirrors the Windows host CLI open flow).
     void loadWorkspace(const QString &root);
 
-protected:
-    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
     void pickWorkspace();
+    void showAbout();
     void openSelectedFile(QListWidgetItem *item);
     void saveCurrentFile();
     void refreshBranch();
