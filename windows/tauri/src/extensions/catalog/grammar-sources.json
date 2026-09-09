@@ -48,7 +48,7 @@
     "path": "."
   },
   "groovy": {
-    "repository": "tree-sitter/tree-sitter-groovy",
+    "repository": "murtaza64/tree-sitter-groovy",
     "path": "."
   },
   "html": {
