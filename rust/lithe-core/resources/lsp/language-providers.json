@@ -174,10 +174,18 @@
     {
       "id": "groovy",
       "displayName": "Groovy",
-      "fileExtensions": ["groovy"],
+      "fileExtensions": ["groovy", "gvy", "gradle"],
+      "fileNames": ["Jenkinsfile"],
       "capabilities": ["languageServer", "formatting"],
       "activationPolicy": "onDemand",
-      "languageId": "groovy"
+      "languageId": "groovy",
+      "languageServerLaunch": {
+        "executableNames": ["groovy-language-server"],
+        "arguments": []
+      },
+      "languageServerInstallation": {
+        "officialDownloadURL": "https://github.com/GroovyLanguageServer/groovy-language-server"
+      }
     },
     {
       "id": "ruby",

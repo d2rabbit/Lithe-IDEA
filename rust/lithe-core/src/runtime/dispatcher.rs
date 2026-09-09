@@ -18,8 +18,8 @@ use crate::git::{
 use crate::github::{NormalizeResponseRequest, ParseRemoteRequest, RequestPlanRequest};
 use crate::languages::{
     JavaClassNameRequest, JavaCodeVisionRequest, JavaRunConfigurationsRequest,
-    JavaServerPortRequest, JavaSourceDefinitionRequest, JavaStructureRequest, MybatisIndexRequest,
-    SpringIndexRequest,
+    JavaServerPortRequest, JavaSourceDefinitionRequest, JavaStructureRequest,
+    LanguageStructureRequest, MybatisIndexRequest, SpringIndexRequest,
 };
 use crate::project::{
     self, DocumentLifecycleRequest, FileReadRequest, FileWriteRequest, ReplacementPreviewRequest,
@@ -1439,6 +1439,24 @@ fn execute(request: &str) -> CoreResponse {
                 Ok(data) => CoreResponse::success(
                     id,
                     serde_json::to_value(data).expect("Java structure response should encode"),
+                ),
+                Err(error) => CoreResponse::failure(id, error),
+            }
+        }
+        CoreCommand::LanguageStructure => {
+            match serde_json::from_value::<LanguageStructureRequest>(parsed.payload)
+                .map_err(|error| {
+                    CoreError::new(
+                        ErrorCode::InvalidRequest,
+                        "Invalid language structure request",
+                    )
+                    .with_details(error.to_string())
+                })
+                .and_then(crate::languages::language_structure)
+            {
+                Ok(data) => CoreResponse::success(
+                    id,
+                    serde_json::to_value(data).expect("language structure response should encode"),
                 ),
                 Err(error) => CoreResponse::failure(id, error),
             }

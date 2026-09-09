@@ -1525,17 +1525,41 @@ struct CodeEditorView: NSViewRepresentable {
                       let self,
                       let document = self.document,
                       let textView = self.textView as? CodeTextView else { return }
-                guard self.fileExtension.lowercased() == "java", let model = self.model else {
+                guard let model = self.model,
+                      let language = Self.jvmLanguageIdentifier(forExtension: self.fileExtension) else {
                     self.clearJavaStructure()
                     return
                 }
                 let documentID = document.id
                 let source = textView.string
-                let structure = await model.javaStructure(source: source)
+                let structure: JavaStructureResult?
+                if language == "java" {
+                    structure = await model.javaStructure(source: source)
+                } else {
+                    structure = await model.languageStructure(source: source, language: language)
+                }
                 guard !Task.isCancelled,
                       self.document?.id == documentID,
                       self.textView?.string == source else { return }
                 self.applyJavaStructure(structure, useDefaultImportFold: useDefaultImportFold)
+            }
+        }
+
+        /// Maps editor file extensions to the JVM family identifiers that the
+        /// `language.structure` command accepts; other extensions keep no
+        /// native structure features.
+        static func jvmLanguageIdentifier(forExtension fileExtension: String) -> String? {
+            switch fileExtension.lowercased() {
+            case "java":
+                return "java"
+            case "kt", "kts":
+                return "kotlin"
+            case "scala", "sc":
+                return "scala"
+            case "groovy", "gvy", "gradle":
+                return "groovy"
+            default:
+                return nil
             }
         }
 

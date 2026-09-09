@@ -5656,6 +5656,7 @@ private struct RunTestJavaMavenOperations: JavaMavenOperations {
     func serverPort(content: String, fileExtension: String) -> Int? { nil }
     func scanRunConfigurations(at rootURL: URL, files: [URL], mavenProject: MavenProject?) -> [JavaRunConfiguration] { [] }
     func structure(source: String, declarationSources: [String]) -> JavaStructureResult? { nil }
+    func languageStructure(source: String, language: String) -> JavaStructureResult? { nil }
 }
 
 @Suite("Core payload decoding")

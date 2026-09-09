@@ -400,7 +400,7 @@ pub struct JavaServerPortResponse {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-/// Foldable Java source region and the text span hidden by folding.
+/// Foldable JVM-family source region and the text span hidden by folding.
 pub struct JavaFoldRegionResponse {
     /// Fold category such as imports, declaration, or comment.
     pub kind: String,
@@ -421,7 +421,7 @@ pub struct JavaInlayHintResponse {
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-/// One non-overlapping Java token range with a portable editor-theme role.
+/// One non-overlapping JVM-family token range with a portable editor-theme role.
 pub struct JavaSyntaxHighlightResponse {
     /// Document-relative start measured in UTF-16 code units.
     pub utf16_start: usize,
@@ -437,6 +437,14 @@ pub struct JavaSyntaxHighlightResponse {
 pub struct JavaStructureResponse {
     pub fold_regions: Vec<JavaFoldRegionResponse>,
     pub inlay_hints: Vec<JavaInlayHintResponse>,
+    pub syntax_highlights: Vec<JavaSyntaxHighlightResponse>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+/// Fold regions and syntax highlights derived from one JVM-family document.
+pub struct LanguageStructureResponse {
+    pub fold_regions: Vec<JavaFoldRegionResponse>,
     pub syntax_highlights: Vec<JavaSyntaxHighlightResponse>,
 }
 

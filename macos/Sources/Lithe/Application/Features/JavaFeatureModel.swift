@@ -205,6 +205,13 @@ final class JavaFeatureModel: ObservableObject {
         }.value
     }
 
+    func languageStructure(source: String, language: String) async -> JavaStructureResult? {
+        let operations = self.operations
+        return await Task.detached(priority: .utility) {
+            operations.languageStructure(source: source, language: language)
+        }.value
+    }
+
     func codeVision(
         for fileURL: URL,
         projectFiles: [URL],

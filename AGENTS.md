@@ -18,6 +18,78 @@ If the task involves building, running, diagnosing, or transferring files to the
 Windows product through a Parallels guest VM, additionally load
 `.agents/skills/debug-windows-on-parallels/SKILL.md` before proceeding.
 
+## Repository Overview
+
+Lithe is a low-memory IntelliJ IDEA alternative for Java and Spring Boot
+development, built as two independent platform products over a shared Rust
+core:
+
+- `macos/` — reference product. SwiftUI/AppKit app under
+  `macos/Sources/Lithe/` plus independently owned `Lithe<Feature>Module`
+  targets. The SwiftPM package (`Package.swift`) sits at the repo root;
+  Swift 6.2 toolchain.
+- `rust/lithe-core/` — shared deterministic commands, models, validation, JSON
+  envelope, and C ABI consumed by both platforms. `lithe-db-mcp` and
+  `lithe-db-sidecar` are database helpers.
+- `windows/tauri/` — independent React + Tauri 2 product (Bun for frontend
+  scripts). Must not import Swift source or depend on macOS types.
+- `shared/` — cross-platform JSON contracts (`shared/contracts/`) and reusable
+  fixtures (`shared/fixtures/projects/`); not compiled implementation.
+- `Plugins/mac/` and `Plugins/win/` — platform-owned plugin packages; neither
+  platform compiles the other's plugin tree.
+- `scripts/`, `docs/`, `infra/`, `third_party/` — build/verification tooling,
+  documentation, repository-level validation containers, pinned upstream code.
+
+## Common Commands
+
+Run from the repository root:
+
+- Dev build + launch macOS app: `./scripts/preview.sh` (builds and links Rust
+  Core first). Swift-only validation: `swift run --disable-sandbox Lithe`.
+- macOS tests: `./scripts/test-macos.sh`.
+- Rust Core: `./scripts/verify-rust-core-comments.sh` first (fast), then
+  `./scripts/verify-rust-core.sh`.
+- Boundaries and contracts: `./scripts/verify-service-boundaries.sh`,
+  `./scripts/verify-shared-contracts.sh`,
+  `./scripts/verify-windows-boundaries.sh` (runnable from macOS/Linux).
+- Feature checks: `./scripts/verify-core.sh`,
+  `./scripts/verify-git-graph.sh`,
+  `./scripts/test-git-performance-baseline.sh`.
+- Packaging: `./scripts/package-app.sh` (macOS app bundle),
+  `./scripts/build-windows.ps1 -Configuration Release` (Windows; then
+  `cargo test --manifest-path windows/tauri/src-tauri/Cargo.toml` on Windows).
+
+Pick the smallest check matching the change; the full change-to-validation
+matrix is in the `develop-lithe` skill. Never claim a check passed that you
+could not run on the current machine.
+
+## Key Boundary Rules
+
+- macOS layering: Views → Application feature models → Services → Core ports →
+  typed Rust adapters. Core and Services must stay free of SwiftUI, AppKit,
+  `Process`, and direct platform APIs. `MacServiceContainer` is the composition
+  root; platform capabilities live in `macos/Sources/Lithe/Platform/MacOS/`.
+- Command names, JSON fields, error codes, C symbols, and module/capability IDs
+  are compatibility surfaces — moving or refactoring files must not change
+  them.
+- Deterministic behavior shared by both products belongs in
+  `rust/lithe-core/`; add a fixture under `shared/fixtures/` before a second
+  platform relies on new shared behavior.
+- Windows feature code imports `@/platform/tauri-core`, not the Tauri core API
+  directly. Shared operations route through lithe-core; Windows-only native
+  behavior stays in the Tauri host or a platform plugin.
+- Never embed developer-machine paths, credentials, or tool installation paths
+  in application logic; resolve them through adapters or configuration.
+
+## Key Docs
+
+- `docs/architecture/repository-layout.md` — directory ownership, sharing
+  rules, Rust Core package layout, and the full Rust Core comment standard.
+- `shared/contracts/application-boundary.md` and
+  `shared/contracts/rust-core-api.md` — cross-platform contracts.
+- `docs/architecture/language-tooling.md` — LSP protocol/application split
+  between Rust and platform services.
+
 ## Test Process Lifecycle and Cleanup
 
 Unless the user gives a specific instruction to keep a process running, any

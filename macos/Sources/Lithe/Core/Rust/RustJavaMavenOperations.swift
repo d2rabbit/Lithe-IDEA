@@ -35,6 +35,10 @@ protocol JavaMavenOperations: MavenProjectOperations, RunServerPortParsing, Send
         source: String,
         declarationSources: [String]
     ) -> JavaStructureResult?
+    func languageStructure(
+        source: String,
+        language: String
+    ) -> JavaStructureResult?
     func springIndex(
         at rootURL: URL,
         files: [URL],
@@ -323,6 +327,19 @@ struct RustJavaMavenOperations: JavaMavenOperations, Sendable {
             source: source,
             declarationSources: declarationSources
         ) else { return nil }
+        return JavaStructureResult(
+            foldRegions: payload.makeFoldRegions(),
+            syntaxHighlights: payload.makeSyntaxHighlights()
+        )
+    }
+
+    func languageStructure(
+        source: String,
+        language: String
+    ) -> JavaStructureResult? {
+        guard let payload = core.languageStructure(source: source, language: language) else {
+            return nil
+        }
         return JavaStructureResult(
             foldRegions: payload.makeFoldRegions(),
             syntaxHighlights: payload.makeSyntaxHighlights()

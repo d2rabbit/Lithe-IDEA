@@ -1,6 +1,7 @@
 //! In-process document symbols, references, renames, and semantic-token helpers.
 
 use super::edits::{range_for_offsets, utf16_position_to_byte_offset};
+use crate::languages::JvmLanguage;
 use crate::lsp::interface::{
     LspPosition, LspPositionResponse, LspRangeResponse, LspTextEditResponse,
 };
@@ -107,6 +108,7 @@ pub fn builtin_completions(
     };
 
     let mut seen = BTreeMap::<String, i32>::new();
+    let language = jvm_language_for_file(&request.file_path);
     for occurrence in identifier_occurrences(&request.text) {
         if occurrence.value == prefix {
             continue;
@@ -114,7 +116,7 @@ pub fn builtin_completions(
         if !prefix.is_empty() && !occurrence.value.starts_with(&prefix) {
             continue;
         }
-        let kind = builtin_completion_kind(&request.text, occurrence.start);
+        let kind = builtin_completion_kind(&request.text, occurrence.start, language);
         seen.entry(occurrence.value).or_insert(kind);
     }
 
@@ -186,7 +188,6 @@ pub fn builtin_navigation(
     } else if request.method == "textDocument/implementation" {
         occurrences.retain(|occurrence| occurrence.start != identifier.start);
     }
-
     let locations = occurrences
         .into_iter()
         .take(200)
@@ -267,11 +268,14 @@ fn is_language_keyword(value: &str) -> bool {
         "as" | "async"
             | "await"
             | "break"
+            | "by"
             | "case"
             | "catch"
             | "class"
+            | "companion"
             | "const"
             | "continue"
+            | "data"
             | "def"
             | "default"
             | "defer"
@@ -280,32 +284,57 @@ fn is_language_keyword(value: &str) -> bool {
             | "enum"
             | "export"
             | "extends"
+            | "external"
             | "false"
             | "final"
+            | "finally"
             | "fn"
             | "for"
+            | "foreign"
+            | "from"
+            | "fun"
             | "func"
             | "function"
+            | "given"
             | "if"
             | "impl"
+            | "implicit"
             | "import"
             | "in"
+            | "infix"
+            | "init"
+            | "inline"
+            | "instanceof"
             | "interface"
+            | "internal"
+            | "is"
+            | "lateinit"
+            | "lazy"
             | "let"
             | "match"
             | "mod"
             | "mut"
             | "nil"
             | "null"
+            | "object"
+            | "open"
+            | "operator"
+            | "override"
             | "package"
             | "private"
             | "protected"
             | "public"
+            | "reified"
+            | "record"
             | "return"
+            | "sealed"
             | "self"
             | "static"
             | "struct"
+            | "super"
+            | "suspend"
             | "switch"
+            | "tailrec"
             | "this"
             | "throw"
             | "throws"
@@ -313,12 +342,34 @@ fn is_language_keyword(value: &str) -> bool {
             | "true"
             | "try"
             | "type"
+            | "typealias"
+            | "val"
             | "var"
+            | "when"
+            | "where"
             | "while"
+            | "with"
+            | "yield"
     )
 }
 
-fn builtin_completion_kind(text: &str, start: usize) -> i32 {
+/// Maps a document path to the JVM family member the lightweight layer can
+/// reason about; other languages keep the generic text-level behavior.
+fn jvm_language_for_file(file_path: &str) -> Option<JvmLanguage> {
+    let extension = file_path.rsplit_once('.')?.1.to_ascii_lowercase();
+    match extension.as_str() {
+        "java" => Some(JvmLanguage::Java),
+        "kt" | "kts" => Some(JvmLanguage::Kotlin),
+        "scala" | "sc" => Some(JvmLanguage::Scala),
+        "groovy" | "gvy" | "gradle" => Some(JvmLanguage::Groovy),
+        _ => None,
+    }
+}
+
+fn builtin_completion_kind(text: &str, start: usize, language: Option<JvmLanguage>) -> i32 {
+    if let Some(language) = language {
+        return jvm_completion_kind(text, start, language);
+    }
     if looks_like_declaration_with_keywords(
         text,
         start,
@@ -333,6 +384,60 @@ fn builtin_completion_kind(text: &str, start: usize) -> i32 {
     }
 }
 
+/// Infers LSP completion kinds from JVM declaration shapes: type keywords,
+/// function keywords, property keywords, then a parenthesized name.
+fn jvm_completion_kind(text: &str, start: usize, language: JvmLanguage) -> i32 {
+    let (type_keywords, function_keywords, property_keywords): (&[&str], &[&str], &[&str]) =
+        match language {
+            JvmLanguage::Java => (&["class", "interface", "enum", "record"], &[], &[]),
+            JvmLanguage::Kotlin => (
+                &["class", "interface", "enum", "object"],
+                &["fun"],
+                &["val", "var"],
+            ),
+            JvmLanguage::Scala => (
+                &["class", "trait", "object", "enum"],
+                &["def"],
+                &["val", "var"],
+            ),
+            JvmLanguage::Groovy => (&["class", "interface", "enum", "trait"], &["def"], &[]),
+        };
+    if looks_like_declaration_with_keywords(text, start, type_keywords) {
+        return 7;
+    }
+    if !function_keywords.is_empty()
+        && looks_like_declaration_with_keywords(text, start, function_keywords)
+    {
+        return 3;
+    }
+    if !property_keywords.is_empty()
+        && looks_like_declaration_with_keywords(text, start, property_keywords)
+    {
+        return 6;
+    }
+    // A name directly followed by `(` is a function declaration or call site
+    // even when the language has no function declaration keyword (Java, Groovy
+    // typed methods).
+    if followed_by_call_parenthesis(text, start) {
+        return 3;
+    }
+    6
+}
+
+fn followed_by_call_parenthesis(text: &str, start: usize) -> bool {
+    let identifier_end = text[start..]
+        .char_indices()
+        .take_while(|(_, character)| is_identifier_character(*character))
+        .map(|(index, character)| index + character.len_utf8())
+        .last()
+        .map(|index| start + index)
+        .unwrap_or(start);
+    text[identifier_end..]
+        .chars()
+        .find(|character| !character.is_whitespace())
+        .is_some_and(|character| character == '(')
+}
+
 fn looks_like_declaration(text: &str, start: usize) -> bool {
     looks_like_declaration_with_keywords(
         text,
@@ -343,12 +448,16 @@ fn looks_like_declaration(text: &str, start: usize) -> bool {
             "enum",
             "interface",
             "trait",
+            "record",
+            "object",
             "func",
             "function",
             "def",
             "fn",
-            "let",
+            "fun",
+            "val",
             "var",
+            "let",
             "const",
             "type",
         ],

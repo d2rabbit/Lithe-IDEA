@@ -729,6 +729,10 @@ final class AppModel: ObservableObject, Identifiable {
         await javaFeature.structure(source: source, declarationSources: declarationSources)
     }
 
+    func languageStructure(source: String, language: String) async -> JavaStructureResult? {
+        await javaFeature.languageStructure(source: source, language: language)
+    }
+
     var activeDocument: EditorDocument? {
         documentFeature.activeDocument
     }

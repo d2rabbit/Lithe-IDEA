@@ -398,6 +398,85 @@ fn builtin_navigation_prefers_declarations_and_finds_references() {
 }
 
 #[test]
+fn builtin_completion_infers_jvm_declaration_kinds() {
+    let kotlin_source = concat!(
+        "data class User(val name: String) {\n",
+        "    fun greet(prefix: String): String = prefix\n",
+        "    val size = 1\n",
+        "}\n",
+    );
+    let kind_for_prefix = |prefix: &str, line: i64, column: i64| {
+        builtin_completions(BuiltinRequest {
+            file_path: "/tmp/settings.gradle.kts".to_string(),
+            text: format!("{kotlin_source}{prefix}"),
+            position: LspPosition {
+                line,
+                utf16_column: column,
+            },
+        })
+        .unwrap()
+        .items
+    };
+
+    let items = kind_for_prefix("Us", 4, 2);
+    let user = items.iter().find(|item| item.label == "User").unwrap();
+    assert_eq!(user.kind, Some(7));
+
+    let items = kind_for_prefix("gre", 4, 3);
+    let greet = items.iter().find(|item| item.label == "greet").unwrap();
+    assert_eq!(greet.kind, Some(3));
+
+    let items = kind_for_prefix("si", 4, 2);
+    let size = items.iter().find(|item| item.label == "size").unwrap();
+    assert_eq!(size.kind, Some(6));
+
+    let items = builtin_completions(BuiltinRequest {
+        file_path: "/tmp/Demo.java".to_string(),
+        text: "class Demo {\n    void run() {}\n}\nru".to_string(),
+        position: LspPosition {
+            line: 3,
+            utf16_column: 2,
+        },
+    })
+    .unwrap()
+    .items;
+    let run = items.iter().find(|item| item.label == "run").unwrap();
+    // Java has no function declaration keyword; the call parenthesis decides.
+    assert_eq!(run.kind, Some(3));
+}
+
+#[test]
+fn builtin_navigation_finds_kotlin_and_scala_declarations() {
+    let kotlin = "class Repo {\n    fun find(id: Long): String = \"\"\n}\nfind(1)\n";
+    let definitions = builtin_navigation(BuiltinNavigationRequest {
+        file_path: "/tmp/Repo.kt".to_string(),
+        text: kotlin.to_string(),
+        position: LspPosition {
+            line: 3,
+            utf16_column: 1,
+        },
+        method: "textDocument/definition".to_string(),
+    })
+    .unwrap();
+    assert_eq!(definitions.locations.len(), 1);
+    assert_eq!(definitions.locations[0].range.start.line, 1);
+
+    let scala = "class Service {\n  def start(): Unit = ()\n}\nstart()\n";
+    let definitions = builtin_navigation(BuiltinNavigationRequest {
+        file_path: "/tmp/Service.scala".to_string(),
+        text: scala.to_string(),
+        position: LspPosition {
+            line: 3,
+            utf16_column: 1,
+        },
+        method: "textDocument/definition".to_string(),
+    })
+    .unwrap();
+    assert_eq!(definitions.locations.len(), 1);
+    assert_eq!(definitions.locations[0].range.start.line, 1);
+}
+
+#[test]
 fn file_uri_paths_decode_spaces_and_utf8_characters() {
     assert_eq!(
         file_path_from_uri("file:///tmp/go%20project/%E4%B8%AD%E6%96%87/main.go"),

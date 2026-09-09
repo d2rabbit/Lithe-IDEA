@@ -76,6 +76,13 @@ provider 抛错不会让路由提前结束。这个策略用于隔离第三方�
 Rust Core 的 `lsp.builtinCompletions`、`lsp.builtinHover` 和
 `lsp.builtinNavigation` 只读取当前文件文本。Swift 层另外为 Go、Swift、Rust、Python、JavaScript 和 TypeScript 提供关键字候选；即使 Rust Core 未链接，关键字补全仍可使用。
 
+JVM 族的编辑器结构识别同样不依赖语言服务器进程：`language.structure` 为
+Java、Kotlin、Scala 和 Groovy 返回与 `java.structure` 相同形状的
+`foldRegions` 与 `syntaxHighlights`（Java 委托给 Java 解析器，Kotlin、Scala、
+Groovy 使用各自的 tree-sitter grammar）。`lsp.builtin*` 对 JVM 族文件按
+语言推断补全类型与声明位置（`fun`/`def`/`val`/`var` 等），Gradle 构建脚本
+（`.gradle`、`.kts`）与 `Jenkinsfile` 分别归入 Groovy/Kotlin 识别范围。
+
 这些结果是可用性降级，不是类型系统：
 
 - 不解析依赖，不启动构建工具，不访问网络；

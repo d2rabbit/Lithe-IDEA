@@ -1980,6 +1980,11 @@ struct RustCoreBridge: Sendable, IncrementalLanguageServerRuntimeCore {
         let declarationSources: [String]
     }
 
+    private struct LanguageStructureRequest: Encodable {
+        let source: String
+        let language: String
+    }
+
     private struct SpringIndexRequest: Encodable {
         let root: String
         let paths: [String]
@@ -2911,6 +2916,13 @@ struct RustCoreBridge: Sendable, IncrementalLanguageServerRuntimeCore {
         execute(
             command: "java.structure",
             payload: JavaStructureRequest(source: source, declarationSources: declarationSources)
+        )
+    }
+
+    func languageStructure(source: String, language: String) -> JavaStructurePayload? {
+        execute(
+            command: "language.structure",
+            payload: LanguageStructureRequest(source: source, language: language)
         )
     }
 

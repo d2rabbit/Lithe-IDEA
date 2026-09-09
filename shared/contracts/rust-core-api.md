@@ -132,6 +132,7 @@ stable error code and a user-facing message:
 | `java.sourceDefinition` | Locate a Java type, method, or field declaration in source text |
 | `java.serverPort` | Parse Spring server port settings from properties or YAML text |
 | `java.structure` | Parse Java editor folds, inlay hints, and portable syntax roles |
+| `language.structure` | Parse JVM-family editor folds and portable syntax roles for Java, Kotlin, Scala, and Groovy |
 | `spring.index` | Build a deterministic Spring configuration, bean, injection, and endpoint index |
 | `mybatis.index` | Build a deterministic MyBatis mapper-interface and XML statement index |
 | `runConfig.inspect` | Inspect `.lithe` run documents, versions, and staleness without writing files |
@@ -1133,6 +1134,14 @@ system. Syntax highlights contain document-relative `utf16Start`,
 are sorted and non-overlapping, so native renderers can apply semantic colors
 without maintaining another Java parser. The parser is platform-independent
 and does not start a Java process or contact JDT.
+
+`language.structure` accepts `source` and a `language` identifier of `java`,
+`kotlin`, `scala`, or `groovy`. It returns the same deterministic
+`foldRegions` and `syntaxHighlights` shapes as `java.structure` (without
+inlay hints) for the whole JVM family: Java delegates to the Java parser,
+while Kotlin, Scala, and Groovy use their own tree-sitter grammars. Imports,
+block comments, and braces fold; triple-quoted string templates never produce
+fold regions. The command is process-free and platform-independent.
 
 `spring.index` accepts `root`, workspace-relative `paths`, optional trusted
 absolute `metadataRepositories` (and the legacy singular `metadataRepository`),

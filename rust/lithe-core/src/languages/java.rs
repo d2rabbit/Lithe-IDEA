@@ -360,7 +360,7 @@ fn kind_order(kind: &str) -> usize {
     }
 }
 
-fn fold_regions(source: &str) -> Vec<JavaFoldRegionResponse> {
+pub(super) fn fold_regions(source: &str) -> Vec<JavaFoldRegionResponse> {
     let mut regions = import_region(source).into_iter().collect::<Vec<_>>();
     regions.extend(comment_regions(source));
     regions.extend(brace_regions(source));

@@ -2,9 +2,11 @@
 
 mod java;
 mod java_syntax;
+mod jvm_syntax;
 mod mybatis;
 mod spring;
 
 pub(crate) use java::*;
+pub(crate) use jvm_syntax::{language_structure, JvmLanguage, LanguageStructureRequest};
 pub(crate) use mybatis::*;
 pub(crate) use spring::*;

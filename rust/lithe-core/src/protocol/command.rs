@@ -195,6 +195,8 @@ pub enum CoreCommand {
     JavaServerPort,
     /// Computes lightweight Java structure features (`java.structure`).
     JavaStructure,
+    /// Computes JVM-family fold and syntax structure features (`language.structure`).
+    LanguageStructure,
     /// Builds Spring configuration, bean, injection, and endpoint indexes (`spring.index`).
     SpringIndex,
     /// Builds MyBatis mapper-interface and XML statement indexes (`mybatis.index`).
@@ -344,6 +346,7 @@ impl CoreCommand {
             "java.sourceDefinition" => Some(Self::JavaSourceDefinition),
             "java.serverPort" => Some(Self::JavaServerPort),
             "java.structure" => Some(Self::JavaStructure),
+            "language.structure" => Some(Self::LanguageStructure),
             "java.navigationMarkers" => Some(Self::JavaNavigationMarkers),
             "spring.index" => Some(Self::SpringIndex),
             "mybatis.index" => Some(Self::MybatisIndex),
