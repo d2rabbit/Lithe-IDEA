@@ -562,8 +562,66 @@ fn font_query_process_creation_flags() -> u32 {
     CREATE_NO_WINDOW
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(any(target_os = "windows", target_os = "linux")))]
 fn platform_fonts() -> Vec<FontInfo> {
+    non_windows_fallback_fonts()
+}
+
+#[cfg(target_os = "linux")]
+fn platform_fonts() -> Vec<FontInfo> {
+    use std::collections::BTreeMap;
+    use std::process::Command;
+
+    let mut fonts = non_windows_fallback_fonts();
+
+    // fontconfig is the standard family enumerator on Linux desktops; when it
+    // is missing the caller still gets the built-in fallback families.
+    let Ok(output) = Command::new("fc-list")
+        .arg("--format")
+        .arg("%{family[0]}\t%{style}\n")
+        .output() else {
+        return fonts;
+    };
+    if !output.status.success() {
+        return fonts;
+    }
+
+    let mut families: BTreeMap<String, (bool, String)> = BTreeMap::new();
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        let Some((family, style)) = line.split_once('\t') else {
+            continue;
+        };
+        let family = family.trim();
+        if family.is_empty() {
+            continue;
+        }
+        let entry = families
+            .entry(family.to_string())
+            .or_insert_with(|| (is_probably_monospace(family), "Regular".to_string()));
+        if entry.1 == "Regular" && !style.trim().is_empty() {
+            entry.1 = style.trim().to_string();
+        }
+    }
+    for (family, (is_monospace, style)) in families {
+        if fonts
+            .iter()
+            .any(|font| font.family.eq_ignore_ascii_case(&family))
+        {
+            continue;
+        }
+        fonts.push(FontInfo {
+            name: family.clone(),
+            family,
+            style,
+            is_monospace,
+        });
+    }
+    fonts.sort_by_key(|font| font.family.to_lowercase());
+    fonts
+}
+
+#[cfg(not(target_os = "windows"))]
+fn non_windows_fallback_fonts() -> Vec<FontInfo> {
     [
         ("Geist Sans", false),
         ("Geist Mono", true),
@@ -580,7 +638,7 @@ fn platform_fonts() -> Vec<FontInfo> {
     .collect()
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(any(windows, target_os = "linux"))]
 fn is_probably_monospace(name: &str) -> bool {
     let lower = name.to_lowercase();
     ["mono", "code", "console", "courier", "fixed", "terminal"]

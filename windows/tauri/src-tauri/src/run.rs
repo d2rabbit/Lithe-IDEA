@@ -15,6 +15,7 @@ use std::sync::{Mutex, OnceLock};
 use std::thread;
 use tauri::{AppHandle, Emitter, Manager};
 
+#[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const SKIPPED_DIRECTORIES: &[&str] = &[
     "target",
@@ -467,12 +468,26 @@ fn validate_write_target(root: &Path, target: &Path) -> Result<(), String> {
         .parent()
         .map(normalize_path)
         .unwrap_or_else(|| root.clone());
-    let root_text = root.to_string_lossy().to_ascii_lowercase();
-    let parent_text = parent.to_string_lossy().to_ascii_lowercase();
-    if parent_text != root_text && !parent_text.starts_with(&(root_text.clone() + "\\")) {
+    // Windows paths are case-insensitive; Linux paths are not, so only the
+    // platform that folds case may fold it during containment comparisons.
+    let root_text = normalize_for_containment(&root.to_string_lossy());
+    let parent_text = normalize_for_containment(&parent.to_string_lossy());
+    let inside = parent_text == root_text
+        || parent_text.starts_with(&format!("{root_text}{}", std::path::MAIN_SEPARATOR))
+        || (cfg!(windows) && parent_text.starts_with(&(root_text.clone() + "/")));
+    if !inside {
         return Err("Refusing to write outside the project directory.".into());
     }
     Ok(())
+}
+
+/// Folds path case only where the platform filesystem is case-insensitive.
+fn normalize_for_containment(text: &str) -> String {
+    if cfg!(windows) {
+        text.to_ascii_lowercase()
+    } else {
+        text.to_string()
+    }
 }
 
 pub(crate) fn atomic_write(path: &Path, contents: &[u8]) -> Result<(), String> {
@@ -1273,6 +1288,7 @@ fn batch_command(executable: &str, arguments: &[String]) -> Command {
     command
 }
 
+#[cfg(windows)]
 fn batch_command_line(executable: &str, arguments: &[String]) -> String {
     let mut inner = String::from("call ");
     inner.push_str(&quote_windows_arg(executable));
@@ -1283,6 +1299,7 @@ fn batch_command_line(executable: &str, arguments: &[String]) -> String {
     format!("\"{inner}\"")
 }
 
+#[cfg(windows)]
 fn quote_windows_arg(argument: &str) -> String {
     if argument.is_empty() {
         return "\"\"".into();
@@ -1584,8 +1601,17 @@ mod tests {
 
     #[test]
     fn workspace_relative_paths_use_forward_slashes() {
-        let root = PathBuf::from(r"C:\project");
-        let file = PathBuf::from(r"C:\project\src\main\java\App.java");
+        let (root, file) = if cfg!(windows) {
+            (
+                PathBuf::from(r"C:\project"),
+                PathBuf::from(r"C:\project\src\main\java\App.java"),
+            )
+        } else {
+            (
+                PathBuf::from("/project"),
+                PathBuf::from("/project/src/main/java/App.java"),
+            )
+        };
         assert_eq!(
             workspace_relative(&root, &file).as_deref(),
             Some("src/main/java/App.java")
@@ -1872,6 +1898,7 @@ mod tests {
         );
     }
 
+    #[cfg(windows)]
     #[test]
     fn batch_command_line_keeps_maven_goals_inside_one_cmd_string() {
         let line = batch_command_line(
@@ -1891,6 +1918,7 @@ mod tests {
         assert!(!is_batch_file(r"D:\jdk\bin\java.exe"));
     }
 
+    #[cfg(windows)]
     #[test]
     fn quote_windows_arg_wraps_paths_with_spaces() {
         assert_eq!(

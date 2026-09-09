@@ -1582,9 +1582,14 @@ mod tests {
 
     #[test]
     fn derives_adapter_identifier_from_the_executable_name() {
-        assert_eq!(adapter_identifier(r"C:\tools\bun.exe"), "bun");
         assert_eq!(adapter_identifier("python"), "python");
         assert_eq!(adapter_identifier(""), "custom");
+        // Each platform derives the identifier with its own path separator.
+        if cfg!(windows) {
+            assert_eq!(adapter_identifier(r"C:\tools\bun.exe"), "bun");
+        } else {
+            assert_eq!(adapter_identifier("/usr/local/bin/bun"), "bun");
+        }
     }
 
     #[test]
