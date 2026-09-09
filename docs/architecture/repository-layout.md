@@ -124,6 +124,7 @@ rust/lithe-core/src/
 ├── languages/   # language-specific source inspection such as Java
 ├── git/         # Git validation, parsing, state, and mutations
 ├── lsp/         # generic LSP, lightweight fallback, provider/Swift adapters
+├── extensions/  # VSIX and external editor extension package inspection
 └── tests/       # command-level tests grouped by the same domains
 ```
 

@@ -14,6 +14,7 @@ import {
   SparkleIcon as Sparkles,
   TextTIcon as TextT,
   TrashIcon as Trash,
+  UploadSimpleIcon as Import,
   WarningCircleIcon as WarningCircle,
   XCircleIcon as XCircle,
 } from "@/ui/icons";
@@ -53,8 +54,10 @@ import {
 } from "@/features/ai/lib/skill-library";
 import type { AgentConfig } from "@/features/ai/types/acp.types";
 import type { AIChatSkill, MarketplaceSkill } from "@/features/ai/types/skills.types";
+import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { useToast } from "@/features/layout/contexts/toast-context";
 import { useSettingsStore } from "@/features/settings/stores/settings.store";
+import { importVsixFromPath } from "@/extensions/vsix/vsix-import";
 import { useTranslation } from "@/i18n/locale-provider";
 import { Alert, AlertDescription } from "@/ui/alert";
 import Badge from "@/ui/badge";
@@ -558,6 +561,52 @@ export const ExtensionsSidebar = () => {
   const [selectedExtensionId, setSelectedExtensionId] = useState<string | null>(null);
   const { showToast } = useToast();
   const extensionContextMenu = useDropdownMenu<UnifiedExtension>();
+  const [isImportingVsix, setIsImportingVsix] = useState(false);
+
+  const handleImportVsix = useCallback(async () => {
+    try {
+      const selected = await openFileDialog({
+        multiple: false,
+        directory: false,
+        filters: [{ name: "VSIX", extensions: ["vsix"] }],
+      });
+      if (!selected || Array.isArray(selected)) return;
+      setIsImportingVsix(true);
+      const result = await importVsixFromPath(selected);
+      if (!result.ok) {
+        const issue = result.issues[0];
+        showToast({
+          message: t("extensions.vsixImportFailed", {
+            message: issue?.message ?? t("extensions.vsixNotImportable"),
+          }),
+          type: "error",
+          duration: 6000,
+        });
+        return;
+      }
+      showToast({
+        message: t("extensions.vsixImported", { name: result.displayName ?? "" }),
+        description:
+          result.persistence === "session"
+            ? t("extensions.vsixImportSessionOnly")
+            : undefined,
+        type: "success",
+        duration: 4000,
+      });
+    } catch (error) {
+      console.error("VSIX import failed:", error);
+      showToast({
+        message: t("extensions.vsixImportFailed", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
+        type: "error",
+        duration: 6000,
+      });
+    } finally {
+      setIsImportingVsix(false);
+    }
+  }, [showToast, t]);
+
 
   const availableExtensions = useExtensionStore.use.availableExtensions();
   const extensionsWithUpdates = useExtensionStore.use.extensionsWithUpdates();
@@ -1643,6 +1692,15 @@ export const ExtensionsSidebar = () => {
               containerClassName="min-w-0 flex-1 sm:w-80 sm:flex-none"
               className="h-9 bg-surface/45"
             />
+            <Button
+              variant="ghost"
+              size="xs"
+              disabled={isImportingVsix}
+              onClick={() => void handleImportVsix()}
+            >
+              <Import />
+              {t("extensions.importVsix")}
+            </Button>
             {settings.extensionsActiveTab === "skill" ? (
               <Button variant="default" size="xs" onClick={() => setIsSkillsCommandOpen(true)}>
                 <Plus />

@@ -3,6 +3,7 @@
 use crate::protocol::CoreError;
 use serde::Serialize;
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -446,6 +447,102 @@ pub struct JavaStructureResponse {
 pub struct LanguageStructureResponse {
     pub fold_regions: Vec<JavaFoldRegionResponse>,
     pub syntax_highlights: Vec<JavaSyntaxHighlightResponse>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+/// Portable identity of one VSIX package merged from both manifests.
+pub struct VsixIdentityResponse {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    pub version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub publisher: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+/// One importable VSIX color theme with its parsed contents.
+pub struct VsixThemeResponse {
+    pub label: String,
+    pub path: String,
+    /// Portable `dark` or `light` appearance derived from `uiTheme`.
+    pub appearance: String,
+    pub contents: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+/// One importable VSIX icon theme with UTF-8 SVG assets keyed by archive path.
+pub struct VsixIconThemeResponse {
+    pub label: String,
+    pub path: String,
+    pub definition: serde_json::Value,
+    pub assets: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+/// One importable VSIX snippet collection.
+pub struct VsixSnippetResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+    pub path: String,
+    pub snippets: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+/// One importable VSIX language declaration with optional configuration.
+pub struct VsixLanguageResponse {
+    pub id: String,
+    pub extensions: Vec<String>,
+    pub aliases: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub configuration: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+/// A VSIX TextMate grammar reported as metadata only.
+pub struct VsixGrammarResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope_name: Option<String>,
+    pub path: String,
+    pub format: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+/// One stable, machine-readable reason a VSIX contribution was not imported.
+pub struct VsixIssueResponse {
+    pub code: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+/// Normalized static contributions extracted from one VSIX archive.
+pub struct VsixInspectResponse {
+    pub identity: VsixIdentityResponse,
+    /// Whether the package ships JavaScript code (`main`/`browser`).
+    pub has_executable: bool,
+    /// Whether at least one importable static contribution was found.
+    pub installable: bool,
+    pub themes: Vec<VsixThemeResponse>,
+    pub icon_themes: Vec<VsixIconThemeResponse>,
+    pub snippets: Vec<VsixSnippetResponse>,
+    pub languages: Vec<VsixLanguageResponse>,
+    pub grammars: Vec<VsixGrammarResponse>,
+    pub issues: Vec<VsixIssueResponse>,
 }
 
 #[derive(Debug, Clone, Serialize)]

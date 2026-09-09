@@ -6,6 +6,7 @@ use crate::community::{
     DiscourseTopicRequest, DiscourseTopicsRequest,
 };
 use crate::diagnostics::{BuildManifestRequest, RedactTextRequest};
+use crate::extensions::VsixInspectRequest;
 use crate::git::{
     self, GitApplyRequest, GitBlameRequest, GitCheckoutPreflightRequest, GitCommandRequest,
     GitCommitFilesRequest, GitCommitRequest, GitComparisonRequest, GitConflictMarkerRequest,
@@ -1457,6 +1458,21 @@ fn execute(request: &str) -> CoreResponse {
                 Ok(data) => CoreResponse::success(
                     id,
                     serde_json::to_value(data).expect("language structure response should encode"),
+                ),
+                Err(error) => CoreResponse::failure(id, error),
+            }
+        }
+        CoreCommand::ExtensionsInspectVsix => {
+            match serde_json::from_value::<VsixInspectRequest>(parsed.payload)
+                .map_err(|error| {
+                    CoreError::new(ErrorCode::InvalidRequest, "Invalid VSIX inspection request")
+                        .with_details(error.to_string())
+                })
+                .and_then(crate::extensions::inspect_vsix)
+            {
+                Ok(data) => CoreResponse::success(
+                    id,
+                    serde_json::to_value(data).expect("VSIX inspection response should encode"),
                 ),
                 Err(error) => CoreResponse::failure(id, error),
             }

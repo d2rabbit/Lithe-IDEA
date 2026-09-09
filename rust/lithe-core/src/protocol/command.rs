@@ -197,6 +197,8 @@ pub enum CoreCommand {
     JavaStructure,
     /// Computes JVM-family fold and syntax structure features (`language.structure`).
     LanguageStructure,
+    /// Inspects one VSIX archive for importable static contributions (`extensions.inspectVsix`).
+    ExtensionsInspectVsix,
     /// Builds Spring configuration, bean, injection, and endpoint indexes (`spring.index`).
     SpringIndex,
     /// Builds MyBatis mapper-interface and XML statement indexes (`mybatis.index`).
@@ -347,6 +349,7 @@ impl CoreCommand {
             "java.serverPort" => Some(Self::JavaServerPort),
             "java.structure" => Some(Self::JavaStructure),
             "language.structure" => Some(Self::LanguageStructure),
+            "extensions.inspectVsix" => Some(Self::ExtensionsInspectVsix),
             "java.navigationMarkers" => Some(Self::JavaNavigationMarkers),
             "spring.index" => Some(Self::SpringIndex),
             "mybatis.index" => Some(Self::MybatisIndex),

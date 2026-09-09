@@ -133,6 +133,7 @@ stable error code and a user-facing message:
 | `java.serverPort` | Parse Spring server port settings from properties or YAML text |
 | `java.structure` | Parse Java editor folds, inlay hints, and portable syntax roles |
 | `language.structure` | Parse JVM-family editor folds and portable syntax roles for Java, Kotlin, Scala, and Groovy |
+| `extensions.inspectVsix` | Inspect a VSIX archive and return its importable static contributions |
 | `spring.index` | Build a deterministic Spring configuration, bean, injection, and endpoint index |
 | `mybatis.index` | Build a deterministic MyBatis mapper-interface and XML statement index |
 | `runConfig.inspect` | Inspect `.lithe` run documents, versions, and staleness without writing files |
@@ -1142,6 +1143,19 @@ inlay hints) for the whole JVM family: Java delegates to the Java parser,
 while Kotlin, Scala, and Groovy use their own tree-sitter grammars. Imports,
 block comments, and braces fold; triple-quoted string templates never produce
 fold regions. The command is process-free and platform-independent.
+
+`extensions.inspectVsix` accepts an absolute `path` to a `.vsix` archive
+selected by the platform. It parses `extension.vsixmanifest` and
+`extension/package.json` in-place and returns `identity`, `hasExecutable`,
+`installable`, and normalized `themes`, `iconThemes`, `snippets`, `languages`,
+and `grammars` collections plus machine-readable `issues`. Theme contents and
+snippet collections are returned parsed; icon assets are returned as UTF-8 SVG
+text keyed by archive path. TextMate grammars and JavaScript entry points are
+never executed or converted and are reported through stable issue codes
+(`grammarNotSupported`, `executableNotSupported`). The command enforces zip-slip
+and size caps (2 MiB per parsed entry, 64 MiB total) and writes nothing to
+disk. Installing and persisting imported contributions remains
+platform-owned.
 
 `spring.index` accepts `root`, workspace-relative `paths`, optional trusted
 absolute `metadataRepositories` (and the legacy singular `metadataRepository`),

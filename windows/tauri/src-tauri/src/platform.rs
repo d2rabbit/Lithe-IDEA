@@ -107,6 +107,7 @@ fn translate(command: &str, args: Value) -> Result<(String, Value), String> {
     move_field(&mut payload, "repoPath", "root");
 
     let core_command = match command {
+        "extensions_inspect_vsix" => "extensions.inspectVsix",
         "git_status" => "git.status",
         "git_blame_file" => {
             move_field(&mut payload, "filePath", "path");
@@ -671,6 +672,18 @@ mod tests {
             Some("Git stash restore has conflicts: README.md, src/main.rs")
         );
         assert_eq!(command_data_error(&stash_conflict, true), None);
+    }
+
+    #[test]
+    fn translates_vsix_inspection() {
+        let (command, payload) = translate(
+            "extensions_inspect_vsix",
+            json!({ "path": "C:/Downloads/x.vsix" }),
+        )
+        .unwrap();
+
+        assert_eq!(command, "extensions.inspectVsix");
+        assert_eq!(payload, json!({ "path": "C:/Downloads/x.vsix" }));
     }
 
     #[test]

@@ -11,6 +11,7 @@ import { getFullExtensions } from "../languages/full-extensions";
 import { getPackagedLanguageExtensions } from "../languages/language-packager";
 import { loadMarketplaceContributionExtensions } from "../marketplace/marketplace-extensions";
 import { activateExtensionContributions } from "../runtime/extension-contribution-runtime";
+import { restoreImportedVsixExtensions } from "../vsix/vsix-import";
 import { extensionRegistry } from "./extension-registry";
 import {
   findExtensionForFile,
@@ -181,6 +182,10 @@ const useExtensionStoreBase = create<ExtensionStoreState>()(
               await activateExtensionContributions(extensionId, extension.manifest);
             }),
           );
+
+          // Imported VSIX packages are not part of any marketplace snapshot;
+          // re-register their themes, icon themes, and snippets here.
+          await restoreImportedVsixExtensions();
 
           set((state) => {
             state.installedExtensions = installedExtensions;
