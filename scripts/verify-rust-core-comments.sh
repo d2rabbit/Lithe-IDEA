@@ -47,7 +47,12 @@ non_english_block_comments="$(awk '
     FNR == 1 { in_block = 0 }
 
     function emit_if_localized(value) {
-        if (value ~ /[一-龥]/) {
+        # Collation orders differ between GNU/BWK awk, so a CJK code-point
+        # range is not portable; flag any comment content outside ASCII
+        # instead ("comments are English" makes this equivalent here).
+        non_ascii = value
+        gsub(/[ -~]/, "", non_ascii)
+        if (length(non_ascii) > 0) {
             print FILENAME ":" FNR ":" value
         }
     }
