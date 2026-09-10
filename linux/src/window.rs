@@ -21,6 +21,7 @@ const OPEN_FOLDER_TITLE: &str = "打开项目文件夹";
 const DARK_CSS: &str = r#"
 .lithe-root { background-color: #1e1f22; color: #dfe1e5; font-size: 13px; }
 .lithe-chrome { background-color: #2b2d30; border-bottom: 1px solid #43454a; }
+button { min-height: 0; }
 .lithe-chrome button {
   background-color: transparent; border: none; color: #dfe1e5;
   padding: 4px 6px; min-height: 24px; min-width: 24px; border-radius: 4px;
@@ -40,21 +41,29 @@ const DARK_CSS: &str = r#"
 .lithe-app-name { font-size: 18px; font-weight: 600; color: #dfe1e5; }
 .lithe-caption { font-size: 12px; color: #8b929e; }
 .lithe-caption-button {
-  font-size: 12px; color: #8b929e; padding: 0; min-height: 16px;
+  font-size: 12px; color: #8b929e; padding: 0; min-height: 0;
   min-width: 0; background-color: transparent; border: none;
 }
+.lithe-app-name { font-size: 18px; }
+.lithe-caption { font-size: 12px; }
+.lithe-welcome-title { font-size: 20px; }
+.lithe-recent-name, .lithe-recent-path, .lithe-empty-title,
+.lithe-empty-hint, .lithe-status { font-size: 13px; }
+.lithe-empty-hint, .lithe-status, .lithe-branch { font-size: 12px; }
 .lithe-caption-button:hover { color: #dfe1e5; background-color: transparent; }
 .lithe-projects-pill {
   background-color: rgba(53, 116, 240, 0.55); border-radius: 6px;
-  padding: 8px 14px; color: #ffffff; font-weight: 500;
+  padding: 0 14px; min-height: 0; color: #ffffff; font-weight: 500;
+  font-size: 13px;
 }
 .lithe-projects-pill:hover { background-color: rgba(53, 116, 240, 0.7); }
 .lithe-welcome-title { font-size: 20px; font-weight: 600; color: #dfe1e5; }
 .lithe-search-row { border-bottom: 1px solid #43454a; }
 .lithe-search {
   background-color: #1e1f22; border: 1px solid #43454a; border-radius: 6px;
-  padding: 0 10px; color: #dfe1e5;
+  padding: 0 10px; min-height: 0; color: #dfe1e5; font-size: 13px;
 }
+.lithe-search text { min-height: 0; padding: 0; margin: 0; }
 .lithe-search:focus-within { border-color: #3574f0; }
 .lithe-search text { color: #dfe1e5; caret-color: #dfe1e5; background: none; }
 .lithe-search image { color: #8b929e; }
@@ -76,7 +85,10 @@ const DARK_CSS: &str = r#"
 .lithe-avatar-4 { background-color: rgba(139, 92, 246, 0.8); }
 .lithe-empty-title { font-size: 13px; font-weight: 500; color: #dfe1e5; }
 .lithe-empty-hint { font-size: 13px; color: #8b929e; }
-.lithe-status { padding: 0 8px 2px 8px; font-size: 12px; color: #8b929e; }
+.lithe-status {
+  border-top: 1px solid #43454a; padding: 3px 8px; font-size: 12px;
+  color: #8b929e;
+}
 .lithe-editor { background-color: #1e1f22; color: #dfe1e5; }
 .lithe-filelist { background-color: #1e1f22; color: #dfe1e5; }
 "#;
@@ -197,6 +209,7 @@ pub fn create(app: &adw::Application) {
             .build(),
     ));
     projects_pill.add_css_class("lithe-projects-pill");
+    projects_pill.set_height_request(36);
     aside.append(&projects_pill);
 
     let aside_spacer = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -210,7 +223,8 @@ pub fn create(app: &adw::Application) {
             .label("设置")
             .build(),
     ));
-    settings_button.set_halign(gtk::Align::Start);
+    settings_button.set_halign(gtk::Align::Fill);
+    settings_button.set_height_request(36);
     settings_button.add_css_class("lithe-caption-button");
     aside.append(&settings_button);
 
@@ -232,6 +246,7 @@ pub fn create(app: &adw::Application) {
     recents_search.set_placeholder_text(Some("搜索项目"));
     recents_search.add_css_class("lithe-search");
     recents_search.set_hexpand(true);
+    recents_search.set_height_request(36);
     search_row.append(&recents_search);
     let clone_button = gtk::Button::new();
     clone_button.set_child(Some(
@@ -307,6 +322,7 @@ pub fn create(app: &adw::Application) {
     files_search.set_margin_bottom(4);
     files_search.set_margin_start(6);
     files_search.set_margin_end(6);
+    files_search.set_height_request(32);
     let files_list = gtk::Box::new(gtk::Orientation::Vertical, 0);
     files_list.add_css_class("lithe-filelist");
     files_list.append(&files_search);
