@@ -239,6 +239,9 @@ jobs:
           bun test src/features/debugger/services/debug-adapter-events.test.ts
           bun test src/features/run
           bun test src/features/file-explorer/lib/java-clipboard-class.test.ts src/features/file-explorer/lib/paste-java-class-from-clipboard.test.ts
+          bun test src/extensions
+          bun test src/i18n
+          bun test src/features/editor/utils src/features/editor/engines/monaco/model-language-activation.test.ts
 
       - name: Test welcome clone and modal isolation
         if: needs.changes.outputs.windows == 'true'
@@ -289,11 +292,61 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  linux:
+    name: Linux CI (Tauri host)
+    needs: changes
+    if: >-
+      needs.changes.outputs.windows == 'true' ||
+      needs.changes.outputs.rust_core == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install WebKitGTK development libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: windows/tauri/package.json
+
+      - name: Install frontend dependencies
+        working-directory: windows/tauri
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck frontend
+        working-directory: windows/tauri
+        run: bun run typecheck
+
+      - name: Run frontend tests
+        working-directory: windows/tauri
+        run: |
+          bun test src/platform
+          bun test src/extensions
+          bun test src/i18n
+          bun test src/features/editor/utils src/features/editor/engines/monaco
+
+      - name: Verify platform boundaries
+        run: ./scripts/verify-windows-boundaries.sh
+
+      - name: Build Tauri host for Linux
+        working-directory: windows/tauri/src-tauri
+        run: cargo build
+
   gate:
     name: Windows CI gate
     needs:
       - changes
       - validate
+      - linux
     if: always()
     runs-on: ubuntu-latest
 
@@ -305,11 +358,13 @@ jobs:
           RUST_CORE_SELECTED: ${{ needs.changes.outputs.rust_core }}
           WINDOWS_RUST_SELECTED: ${{ needs.changes.outputs.windows_rust }}
           VALIDATE_RESULT: ${{ needs.validate.result }}
+          LINUX_RESULT: ${{ needs.linux.result }}
         shell: bash
         run: |
           [[ "$CHANGES_RESULT" == "success" ]]
           if [[ "$WINDOWS_SELECTED" == "true" || "$RUST_CORE_SELECTED" == "true" || "$WINDOWS_RUST_SELECTED" == "true" ]]; then
             [[ "$VALIDATE_RESULT" == "success" ]]
+            [[ "$LINUX_RESULT" == "success" ]]
           else
             [[ "$VALIDATE_RESULT" == "skipped" ]]
           fi
