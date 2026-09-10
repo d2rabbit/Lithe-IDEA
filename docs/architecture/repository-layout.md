@@ -27,8 +27,6 @@ Lithe-IDEA/
 ├── macos/Tests/LitheTests/       # Swift Testing unit tests
 ├── rust/lithe-core/        # shared Rust commands, models, and C ABI
 ├── windows/                # React/Tauri Windows application and Rust adapters
-├── linux/                  # Native GTK4/libadwaita Linux client over lithe-core
-├── linux-kde/              # Native Qt6/KDE Linux client over the lithe-core C ABI
 ├── shared/                 # contracts and cross-platform fixtures
 ├── shared/fixtures/projects/ # reusable Java, Maven, Spring Boot, and Git data
 ├── scripts/                # build, packaging, fixture, and verification tools
